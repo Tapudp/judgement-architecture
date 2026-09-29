@@ -8,6 +8,8 @@
 
 → **[Judgment P&L calculator](calculator/)** — four numbers in, your cost-optimal confidence threshold and your monthly miscalibration bill out. It is a single HTML file: open `calculator/index.html` in a browser, or use the GitHub Pages site for this repo. It includes **three real, published deployments put into digits** — a bank-chatbot intent router, a Carnegie Mellon AI-judge cascade, and a retail product-matching queue — with every input tagged as published, derived or assumed.
 
+→ **[How we got here](JOURNEY.md)** — the research journey behind this repo: the question we started with, why the obvious idea (a wrapper) died in a week, the eight lenses we looked through, and what we found missing.
+
 ---
 
 ## Software now has four ways to decide
@@ -81,6 +83,10 @@ The token bill is the smallest number on the page. → [Full walkthrough](exampl
 - **Not a product or a vendor.** Vendor-neutral: works with Jev, open-weight decision models, or your own classifier.
 - **Not new maths.** The cost-optimal reject rule is C. K. Chow's, from 1970 [8]; selective prediction and calibration are decades-old fields [9]. What is new is a primitive that makes them free to apply to every decision — and a vocabulary for the people who have to decide where the line goes.
 - **Not finished.** v0.1. The stubs are stubs on purpose.
+
+## How we got here
+
+This started as a builder's question — *can we write a framework on top of decision models?* — and turned into a concept once we saw that the tooling already existed and the thinking did not. If you want to know how we reached this point, what we looked at and what we observed along the way, read **[JOURNEY.md](JOURNEY.md)**.
 
 ## Contributing
 
