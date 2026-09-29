@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Judgment P&amp;L Calculator</title>
+<meta name="description" content="Where should the confidence threshold sit? Price every judgment: model cost, human review of abstentions, errors that slip through, and the interest you pay on miscalibration.">
+<style>
+  :root {
+    --bg: #fbfaf7; --surface: #ffffff; --ink: #1d1d1b; --muted: #5f5d57; --line: #e4e1d9;
+    --accent: #1f5f8b; --accent-soft: #e5eef5; --warn: #a3471b; --warn-soft: #f8e9e0;
+    --good: #2f6b3a; --good-soft: #e5f1e6; --chart-line: #1f5f8b; --chart-grid: #ece9e1;
+    --radius: 10px; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413; --surface: #1c1c1a; --ink: #ecebe6; --muted: #a8a59c; --line: #2f2e2b;
+      --accent: #7fb4db; --accent-soft: #1d2c37; --warn: #e89b73; --warn-soft: #3a261c;
+      --good: #8cc896; --good-soft: #1c2e20; --chart-line: #7fb4db; --chart-grid: #2a2926;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413; --surface: #1c1c1a; --ink: #ecebe6; --muted: #a8a59c; --line: #2f2e2b;
+    --accent: #7fb4db; --accent-soft: #1d2c37; --warn: #e89b73; --warn-soft: #3a261c;
+    --good: #8cc896; --good-soft: #1c2e20; --chart-line: #7fb4db; --chart-grid: #2a2926;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(--sans); }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: clamp(1.6rem, 3.2vw, 2.2rem); line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  p.lede { color: var(--muted); max-width: 70ch; margin: 0 0 24px; }
+  a { color: var(--accent); }
+  .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  .grid > * { min-width: 0; }
+  @media (min-width: 900px) { .grid { grid-template-columns: 380px 1fr; align-items: start; } }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin: 12px 0 4px; }
+  input, select { width: 100%; font: 15px var(--mono); color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .hint { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+  .table-wrap { overflow-x: auto; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; min-width: 300px; font-size: 0.8rem; table-layout: fixed; }
+  th, td { padding: 5px 2px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  th:last-child, td:last-child { width: 28px; }
+  td input { padding: 5px 4px; font-size: 12px; min-width: 0; }
+  button { font: 600 0.85rem var(--sans); color: var(--accent); background: var(--accent-soft); border: 0;
+    border-radius: 6px; padding: 8px 12px; cursor: pointer; transition: transform 120ms ease, background-color 120ms ease; }
+  button:active { transform: scale(0.97); }
+  button.ghost { background: transparent; color: var(--muted); padding: 4px 8px; }
+  @media (hover: hover) and (pointer: fine) { button:hover { filter: brightness(0.96); } }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .metrics { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+  .metric { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--bg); }
+  .metric .k { font-size: 0.8rem; color: var(--muted); }
+  .metric .v { font: 600 1.35rem var(--mono); margin-top: 2px; }
+  .metric .s { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+  .metric.warn { background: var(--warn-soft); border-color: transparent; }
+  .metric.warn .v { color: var(--warn); }
+  .metric.good { background: var(--good-soft); border-color: transparent; }
+  .metric.good .v { color: var(--good); }
+  .chart { width: 100%; height: auto; display: block; margin-top: 8px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .note { font-size: 0.85rem; color: var(--muted); max-width: 75ch; }
+  .sum-bad { color: var(--warn); font-weight: 600; }
+  code { font-family: var(--mono); font-size: 0.9em; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Judgment P&amp;L</h1>
+  <p class="lede">Where should the confidence threshold sit? Every automated judgment costs a model call, a human review when the model abstains, or an error when it acts and is wrong. This prices all three, finds the cheapest threshold, and shows what miscalibration is costing you each month. Part of <a href="../">Judgment Architecture</a> — the concept is explained in <a href="../concepts/judgment-economics">Judgment Economics</a>.</p>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="inputs-h">
+      <h2 id="inputs-h">Inputs</h2>
+      <label for="preset">Scenario</label>
+      <select id="preset">
+        <option value="wismo">Logistics — "where is my order?" auto-reply</option>
+        <option value="hs">Trade — customs HS-code pre-classification</option>
+        <option value="blank">Blank — start from your own numbers</option>
+      </select>
+
+      <label for="volume">Judgments per month</label>
+      <input id="volume" type="number" min="0" step="1000" inputmode="decimal">
+      <label for="modelCost">Model cost per judgment ($)</label>
+      <input id="modelCost" type="number" min="0" step="0.00001" inputmode="decimal">
+      <div class="hint">A System One model is about $0.00002. A frontier LLM call is often 100–1,000× more.</div>
+      <label for="reviewCost">Human review cost per abstention ($)</label>
+      <input id="reviewCost" type="number" min="0" step="0.5" inputmode="decimal">
+      <label for="errorCost">Cost of one wrong automated action ($)</label>
+      <input id="errorCost" type="number" min="0" step="1" inputmode="decimal">
+      <div class="hint">Re-contact, refund, re-shipment, penalty — whatever a mistake really costs.</div>
+
+      <h2 style="margin-top:20px">Reliability table</h2>
+      <div class="note">Group judgments by the confidence the model reported. <b>Claimed</b> = average reported confidence in the band. <b>Measured</b> = share actually correct on labelled samples. <b>Share</b> = fraction of volume in the band.</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>From</th><th>To</th><th>Claimed</th><th>Measured</th><th>Share</th><th></th></tr></thead>
+          <tbody id="bins"></tbody>
+        </table>
+      </div>
+      <div class="row">
+        <button id="addBin" type="button">+ Add band</button>
+        <span id="shareSum" class="hint"></span>
+      </div>
+      <div class="row">
+        <button id="copyLink" type="button">Copy link to this scenario</button>
+        <span id="copyMsg" class="hint" role="status"></span>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="results-h">
+      <h2 id="results-h">Monthly P&amp;L</h2>
+      <div class="metrics" id="metrics"></div>
+      <svg id="chart" class="chart" viewBox="0 0 640 300" role="img" aria-label="Total monthly cost at each confidence threshold"></svg>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--chart-line)"></span>Total cost if you act automatically at or above this confidence</span>
+        <span><span class="swatch" style="background:var(--warn)"></span>Chow threshold (trusting reported confidence)</span>
+        <span><span class="swatch" style="background:var(--good)"></span>Cheapest threshold on measured accuracy</span>
+      </div>
+      <details style="margin-top:16px">
+        <summary>How this is calculated</summary>
+        <div class="note">
+          <p><code>Cost(τ) = N·c + N·A(τ)·r + N·(1 − A(τ))·E(τ)·e</code> — model calls, plus human review of the share <code>A(τ)</code> below the threshold, plus errors among the judgments acted on automatically.</p>
+          <p><b>Chow threshold.</b> C. K. Chow (1970) showed that with <i>calibrated</i> probabilities the cost-minimising rule is: act automatically when confidence ≥ <code>1 − r/e</code>, otherwise ask a human.</p>
+          <p><b>Calibration interest.</b> For every band you act on, the gap between claimed and measured accuracy produces errors you did not plan for: <code>Σ N·share·max(0, claimed − measured)·e</code>.</p>
+          <p><b>Cost of trusting confidence.</b> The difference between the total at the Chow threshold and the total at the cheapest threshold found using measured accuracy.</p>
+          <p>Thresholds are applied at band edges. The default scenarios are illustrative, not measurements of any particular model.</p>
+        </div>
+      </details>
+    </section>
+  </div>
+</main>
+
+<script src="pnl.js"></script>
+<script>
+(function () {
+  "use strict";
+  const J = window.JudgmentPnL;
+
+  const PRESETS = {
+    wismo: { volume: 100000, modelCost: 0.00002, reviewCost: 3, errorCost: 12, bins: [
+      { low: 0, high: 0.5, claimed: 0.40, measured: 0.35, share: 0.05 },
+      { low: 0.5, high: 0.6, claimed: 0.55, measured: 0.52, share: 0.05 },
+      { low: 0.6, high: 0.7, claimed: 0.65, measured: 0.61, share: 0.07 },
+      { low: 0.7, high: 0.75, claimed: 0.725, measured: 0.68, share: 0.05 },
+      { low: 0.75, high: 0.85, claimed: 0.80, measured: 0.72, share: 0.15 },
+      { low: 0.85, high: 0.95, claimed: 0.90, measured: 0.80, share: 0.20 },
+      { low: 0.95, high: 1, claimed: 0.975, measured: 0.97, share: 0.43 } ] },
+    hs: { volume: 20000, modelCost: 0.00002, reviewCost: 3, errorCost: 150, bins: [
+      { low: 0, high: 0.7, claimed: 0.55, measured: 0.50, share: 0.15 },
+      { low: 0.7, high: 0.9, claimed: 0.80, measured: 0.74, share: 0.25 },
+      { low: 0.9, high: 0.98, claimed: 0.94, measured: 0.90, share: 0.30 },
+      { low: 0.98, high: 1, claimed: 0.99, measured: 0.985, share: 0.30 } ] },
+    blank: { volume: 10000, modelCost: 0.00002, reviewCost: 2, errorCost: 20, bins: [
+      { low: 0, high: 0.5, claimed: 0.40, measured: 0.40, share: 0.2 },
+      { low: 0.5, high: 0.8, claimed: 0.65, measured: 0.65, share: 0.3 },
+      { low: 0.8, high: 1, claimed: 0.90, measured: 0.90, share: 0.5 } ] },
+  };
+
+  const $ = (id) => document.getElementById(id);
+  let state = clone(PRESETS.wismo);
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function num(v, d) { const n = parseFloat(v); return Number.isFinite(n) ? n : d; }
+  function money(x) {
+    const a = Math.abs(x);
+    const s = a >= 100 ? Math.round(a).toLocaleString("en-US") : a.toFixed(2);
+    return (x < 0 ? "−$" : "$") + s;
+  }
+  function pct(x) { return Math.round(x * 100) + "%"; }
+
+  function readHash() {
+    try {
+      if (!location.hash || location.hash.length < 3) return null;
+      const obj = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1)))));
+      if (!obj || !Array.isArray(obj.bins)) return null;
+      return obj;
+    } catch (e) { return null; }
+  }
+  function writeHash() {
+    try { history.replaceState(null, "", "#" + btoa(unescape(encodeURIComponent(JSON.stringify(state))))); } catch (e) {}
+  }
+
+  function renderInputs() {
+    $("volume").value = state.volume;
+    $("modelCost").value = state.modelCost;
+    $("reviewCost").value = state.reviewCost;
+    $("errorCost").value = state.errorCost;
+    const tbody = $("bins");
+    tbody.textContent = "";
+    state.bins.forEach((b, i) => {
+      const tr = document.createElement("tr");
+      ["low", "high", "claimed", "measured", "share"].forEach((k) => {
+        const td = document.createElement("td");
+        const inp = document.createElement("input");
+        inp.type = "number"; inp.step = "0.01"; inp.min = "0"; inp.max = "1";
+        inp.value = b[k];
+        inp.setAttribute("aria-label", k + " for band " + (i + 1));
+        inp.addEventListener("input", () => { state.bins[i][k] = num(inp.value, 0); update(false); });
+        td.appendChild(inp); tr.appendChild(td);
+      });
+      const td = document.createElement("td");
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "ghost"; del.textContent = "✕";
+      del.setAttribute("aria-label", "Remove band " + (i + 1));
+      del.addEventListener("click", () => { state.bins.splice(i, 1); renderInputs(); update(false); });
+      td.appendChild(del); tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function metric(label, value, sub, tone) {
+    const d = document.createElement("div");
+    d.className = "metric" + (tone ? " " + tone : "");
+    const k = document.createElement("div"); k.className = "k"; k.textContent = label;
+    const v = document.createElement("div"); v.className = "v"; v.textContent = value;
+    d.appendChild(k); d.appendChild(v);
+    if (sub) { const s = document.createElement("div"); s.className = "s"; s.textContent = sub; d.appendChild(s); }
+    return d;
+  }
+
+  function renderResults(a) {
+    const m = $("metrics");
+    m.textContent = "";
+    const t = (x) => (x > 1 ? "never (all to humans)" : x.toFixed(2));
+    m.appendChild(metric("Chow threshold (trusting reported confidence)", t(a.chowSnapped),
+      "1 − review ÷ error = " + a.chow.toFixed(3) + ". Total " + money(a.atChow.total) + " / month, " + pct(a.atChow.abstainShare) + " to humans."));
+    m.appendChild(metric("Cheapest threshold (measured accuracy)", t(a.best.tau),
+      "Total " + money(a.best.total) + " / month, " + pct(a.best.abstainShare) + " to humans.", "good"));
+    m.appendChild(metric("Calibration interest at the Chow threshold", money(a.atChow.interest),
+      "Errors you did not plan for, because claimed confidence exceeds measured accuracy.", a.atChow.interest > 0 ? "warn" : ""));
+    m.appendChild(metric("Cost of trusting the model's confidence", money(a.trustRegret),
+      "Chow total minus the cheapest total. Zero when the model is calibrated.", a.trustRegret > 0 ? "warn" : ""));
+    m.appendChild(metric("Model bill", money(a.best.model), "The number most dashboards show."));
+    m.appendChild(metric("Everything to humans", money(a.allHuman.total), "Baseline with no automation."));
+  }
+
+  function renderChart(a) {
+    const svg = $("chart");
+    svg.textContent = "";
+    const W = 640, H = 300, L = 64, R = 16, T = 16, B = 40;
+    const pts = a.curve.map((c) => ({ x: Math.min(c.tau, 1), y: c.total }));
+    const niceCeil = (v) => { const p = Math.pow(10, Math.floor(Math.log10(v))); for (const m of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p; return 10 * p; };
+    const maxY = niceCeil(Math.max(1, ...pts.map((p) => p.y)) * 1.04);
+    const X = (x) => L + x * (W - L - R);
+    const Y = (y) => T + (1 - y / maxY) * (H - T - B);
+    const NS = "http://www.w3.org/2000/svg";
+    const el = (n, attrs, text) => { const e = document.createElementNS(NS, n); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text) e.textContent = text; svg.appendChild(e); return e; };
+    const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+    for (let i = 0; i <= 4; i++) {
+      const yv = (maxY / 4) * i;
+      el("line", { x1: L, x2: W - R, y1: Y(yv), y2: Y(yv), stroke: css("--chart-grid"), "stroke-width": 1 });
+      el("text", { x: L - 8, y: Y(yv) + 4, "text-anchor": "end", "font-size": 11, fill: css("--muted"), "font-family": "system-ui" }, money(yv));
+    }
+    for (let i = 0; i <= 10; i += 2) {
+      const xv = i / 10;
+      el("text", { x: X(xv), y: H - B + 18, "text-anchor": "middle", "font-size": 11, fill: css("--muted"), "font-family": "system-ui" }, xv.toFixed(1));
+    }
+    el("text", { x: (L + W - R) / 2, y: H - 6, "text-anchor": "middle", "font-size": 11, fill: css("--muted"), "font-family": "system-ui" }, "act automatically at or above this confidence →");
+
+    const mark = (x, color) => el("line", { x1: X(x), x2: X(x), y1: T, y2: H - B, stroke: color, "stroke-width": 2, "stroke-dasharray": "5 4" });
+    mark(Math.min(a.chowSnapped, 1), css("--warn"));
+    mark(Math.min(a.best.tau, 1), css("--good"));
+
+    el("polyline", { points: pts.map((p) => X(p.x) + "," + Y(p.y)).join(" "), fill: "none", stroke: css("--chart-line"), "stroke-width": 2.5 });
+    pts.forEach((p) => el("circle", { cx: X(p.x), cy: Y(p.y), r: 3.5, fill: css("--chart-line") }));
+  }
+
+  function update(fromInputs) {
+    if (fromInputs) {
+      state.volume = num($("volume").value, 0);
+      state.modelCost = num($("modelCost").value, 0);
+      state.reviewCost = num($("reviewCost").value, 0);
+      state.errorCost = num($("errorCost").value, 0);
+    }
+    const sum = state.bins.reduce((s, b) => s + (b.share || 0), 0);
+    const ss = $("shareSum");
+    ss.textContent = "Shares sum to " + sum.toFixed(2) + (Math.abs(sum - 1) > 0.005 ? " — should be 1.00" : "");
+    ss.className = Math.abs(sum - 1) > 0.005 ? "hint sum-bad" : "hint";
+    if (!state.bins.length) { $("metrics").textContent = "Add at least one band."; $("chart").textContent = ""; return; }
+    const a = J.analyse(state);
+    renderResults(a);
+    renderChart(a);
+    writeHash();
+  }
+
+  ["volume", "modelCost", "reviewCost", "errorCost"].forEach((id) => $(id).addEventListener("input", () => update(true)));
+  $("preset").addEventListener("change", (e) => { state = clone(PRESETS[e.target.value]); renderInputs(); update(false); });
+  $("addBin").addEventListener("click", () => {
+    const last = state.bins[state.bins.length - 1];
+    state.bins.push({ low: last ? last.high : 0, high: 1, claimed: 0.9, measured: 0.9, share: 0 });
+    renderInputs(); update(false);
+  });
+  $("copyLink").addEventListener("click", async () => {
+    writeHash();
+    try { await navigator.clipboard.writeText(location.href); $("copyMsg").textContent = "Copied."; }
+    catch (e) { $("copyMsg").textContent = "Copy the address bar — it holds this scenario."; }
+  });
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => update(false));
+
+  const fromHash = readHash();
+  if (fromHash) { state = fromHash; $("preset").value = "blank"; }
+  renderInputs();
+  update(false);
+})();
+</script>
+</body>
+</html>

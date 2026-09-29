@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:judgment-architecture:spec:judgment-record:0.1",
+  "title": "Judgment Record",
+  "description": "One judgment made by a decision model, stored as an immutable record. Judgment Architecture v0.1 (draft).",
+  "type": "object",
+  "required": ["spec_version", "record_id", "created_at", "state_ref", "question", "model", "answer", "routing"],
+  "additionalProperties": false,
+  "properties": {
+    "spec_version": { "const": "0.1" },
+    "record_id": { "type": "string", "minLength": 1, "description": "Unique, immutable identifier for this record." },
+    "created_at": { "type": "string", "format": "date-time" },
+    "state_ref": {
+      "type": "object",
+      "description": "Reference to the state that was judged. Store a hash, not the raw content, when the content is sensitive.",
+      "required": ["sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "uri": { "type": "string", "description": "Where the state can be retrieved, if retained." },
+        "fields": { "type": "array", "items": { "type": "string" }, "description": "Field paths the question pointed at, e.g. ticket.messages[0].text" }
+      }
+    },
+    "question": {
+      "type": "object",
+      "required": ["id", "version", "type", "consequence_class"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "Stable question identifier, e.g. wismo.status" },
+        "version": { "type": "string" },
+        "type": { "enum": ["choice", "score", "noul"] },
+        "consequence_class": { "enum": ["C0", "C1", "C2", "C3"], "description": "C0 observe · C1 reversible · C2 costly-reversible · C3 irreversible" },
+        "pack": { "type": "string", "description": "Question pack the question belongs to." }
+      }
+    },
+    "model": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "Pinned model version actually used, e.g. jev-1.13.0 — never an alias." },
+        "provider": { "type": "string" },
+        "latency_ms": { "type": "number", "minimum": 0 },
+        "cost_usd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "answer": {
+      "type": "object",
+      "required": ["value", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "description": "Chosen option (choice), level or weighted score (score), or P(yes) (noul)." },
+        "probabilities": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 },
+          "description": "Full distribution over options or levels, as returned."
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "required": ["threshold", "tier", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "threshold": { "type": "number", "minimum": 0, "maximum": 1, "description": "Threshold in force for this consequence class at decision time." },
+        "threshold_basis": { "type": "string", "description": "How the threshold was set, e.g. 'chow r=3 e=12, recalibrated 2026-09-01'." },
+        "tier": { "enum": ["system0", "system1", "system2"] },
+        "band": { "enum": ["act", "act_and_show", "ask"], "description": "Hedge UI band the result was presented in." },
+        "action": { "type": "string", "description": "What the system did, e.g. auto_reply_sent, escalated_to_human." }
+      }
+    },
+    "review": {
+      "type": "object",
+      "description": "Filled when a human reviewed this judgment. Appended as a new record in strict event-sourced stores.",
+      "additionalProperties": false,
+      "properties": {
+        "reviewer": { "type": "string" },
+        "reviewed_at": { "type": "string", "format": "date-time" },
+        "verified_value": {},
+        "override": { "type": "boolean" },
+        "cost_usd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "description": "What eventually turned out to be true, when known.",
+      "additionalProperties": false,
+      "properties": {
+        "observed_at": { "type": "string", "format": "date-time" },
+        "correct": { "type": "boolean" },
+        "error_cost_usd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "supersedes": { "type": "string", "description": "record_id of an earlier record this one corrects." }
+  }
+}

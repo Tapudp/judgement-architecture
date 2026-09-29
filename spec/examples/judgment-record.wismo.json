@@ -1,0 +1,46 @@
+{
+  "spec_version": "0.1",
+  "record_id": "jr_01J9X4Q7ZK8M2T6V3N5R8B1C4D",
+  "created_at": "2026-09-29T14:02:11Z",
+  "state_ref": {
+    "sha256": "3f0a6c2e9b8d7f1a4c5e6b7d8a9f0e1c2b3a4d5e6f708192a3b4c5d6e7f80912",
+    "fields": ["ticket.messages[0].text", "shipment.last_scan"]
+  },
+  "question": {
+    "id": "wismo.status",
+    "version": "3",
+    "type": "choice",
+    "consequence_class": "C1",
+    "pack": "logistics-wismo"
+  },
+  "model": {
+    "id": "jev-1.13.0",
+    "provider": "typesafe",
+    "latency_ms": 212,
+    "cost_usd": 0.00002
+  },
+  "answer": {
+    "value": "out_for_delivery",
+    "probabilities": {
+      "out_for_delivery": 0.83,
+      "delayed_at_hub": 0.11,
+      "delivered": 0.04,
+      "none_of_the_above": 0.02
+    },
+    "confidence": 0.81
+  },
+  "routing": {
+    "threshold": 0.85,
+    "threshold_basis": "Judgment P&L: r=$3, e=$12, measured calibration card cc_wismo_status_v3_en_2026-09",
+    "tier": "system2",
+    "band": "act_and_show",
+    "action": "escalated_to_human"
+  },
+  "review": {
+    "reviewer": "agent-114",
+    "reviewed_at": "2026-09-29T14:09:40Z",
+    "verified_value": "delayed_at_hub",
+    "override": true,
+    "cost_usd": 3
+  }
+}

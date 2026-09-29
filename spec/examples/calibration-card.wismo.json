@@ -1,0 +1,95 @@
+{
+  "spec_version": "0.1",
+  "card_id": "cc_wismo_status_v3_en_2026-09",
+  "issued_at": "2026-09-29T00:00:00Z",
+  "issuer": "Illustrative example — not a measurement of any real model",
+  "subject": {
+    "pack": "logistics-wismo",
+    "question_id": "wismo.status",
+    "question_version": "3",
+    "model_id": "jev-1.13.0",
+    "language": "en",
+    "consequence_class": "C1"
+  },
+  "evaluation": {
+    "n": 500,
+    "label_source": "Human review band, September 2026 (illustrative)"
+  },
+  "reliability": [
+    {
+      "low": 0.0,
+      "high": 0.5,
+      "claimed": 0.4,
+      "measured": 0.35,
+      "share": 0.05
+    },
+    {
+      "low": 0.5,
+      "high": 0.6,
+      "claimed": 0.55,
+      "measured": 0.52,
+      "share": 0.05
+    },
+    {
+      "low": 0.6,
+      "high": 0.7,
+      "claimed": 0.65,
+      "measured": 0.61,
+      "share": 0.07
+    },
+    {
+      "low": 0.7,
+      "high": 0.75,
+      "claimed": 0.725,
+      "measured": 0.68,
+      "share": 0.05
+    },
+    {
+      "low": 0.75,
+      "high": 0.85,
+      "claimed": 0.8,
+      "measured": 0.72,
+      "share": 0.15
+    },
+    {
+      "low": 0.85,
+      "high": 0.95,
+      "claimed": 0.9,
+      "measured": 0.8,
+      "share": 0.2
+    },
+    {
+      "low": 0.95,
+      "high": 1.0,
+      "claimed": 0.975,
+      "measured": 0.97,
+      "share": 0.43
+    }
+  ],
+  "summary": {
+    "ece": 0.043,
+    "accuracy": 0.805,
+    "coverage_at": {
+      "0.75": {
+        "coverage": 0.78,
+        "accuracy": 0.878
+      },
+      "0.85": {
+        "coverage": 0.63,
+        "accuracy": 0.916
+      }
+    },
+    "recommended_threshold": 0.85,
+    "threshold_basis": "Cheapest threshold on measured accuracy with r=$3, e=$12. Chow's rule on claimed confidence (0.75) over-automates the 0.75–0.85 band."
+  },
+  "economics": {
+    "review_cost_usd": 3,
+    "error_cost_usd": 12,
+    "monthly_volume": 100000,
+    "calibration_interest_usd_per_month": 40980
+  },
+  "limitations": [
+    "Illustrative numbers for documentation.",
+    "Calibration interest shown at the Chow threshold (0.75); at the recommended threshold (0.85) it is $26,580 per month."
+  ]
+}
