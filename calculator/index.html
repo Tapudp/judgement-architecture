@@ -69,6 +69,21 @@
   .sum-bad { color: var(--warn); font-weight: 600; }
   code { font-family: var(--mono); font-size: 0.9em; }
   details summary { cursor: pointer; color: var(--accent); font-size: 0.9rem; }
+  .cases { margin-top: 40px; }
+  .cases > h2 { font-size: 1.35rem; margin-bottom: 4px; }
+  .case-grid { display: grid; gap: 16px; grid-template-columns: 1fr; margin-top: 16px; }
+  @media (min-width: 900px) { .case-grid { grid-template-columns: repeat(3, 1fr); } }
+  .case h3 { font-size: 1rem; margin: 0 0 2px; }
+  .case .src { font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; }
+  .case h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 14px 0 6px; }
+  .case ul { margin: 0; padding-left: 18px; font-size: 0.88rem; }
+  .case li { margin: 3px 0; }
+  .case .lesson { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; font-size: 0.88rem; margin-top: 14px; }
+  .case table { min-width: 0; table-layout: auto; font-size: 0.8rem; }
+  .case td, .case th { padding: 4px 4px; }
+  .tag { display: inline-block; font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; background: var(--good-soft); color: var(--good); white-space: nowrap; }
+  .tag.assumed { background: var(--warn-soft); color: var(--warn); }
+  .tag.derived { background: var(--accent-soft); color: var(--accent); }
 </style>
 </head>
 <body>
@@ -81,21 +96,32 @@
       <h2 id="inputs-h">Inputs</h2>
       <label for="preset">Scenario</label>
       <select id="preset">
-        <option value="wismo">Logistics — "where is my order?" auto-reply</option>
-        <option value="hs">Trade — customs HS-code pre-classification</option>
-        <option value="blank">Blank — start from your own numbers</option>
+        <optgroup label="Real published cases">
+          <option value="clinc">Bank chatbot intent routing — CLINC150</option>
+          <option value="cmu">AI-judge cascade — Carnegie Mellon</option>
+        </optgroup>
+        <optgroup label="Illustrative">
+          <option value="wismo" selected>Logistics — "where is my order?" auto-reply</option>
+          <option value="hs">Trade — customs HS-code pre-classification</option>
+          <option value="blank">Blank — start from your own numbers</option>
+        </optgroup>
       </select>
+      <div class="hint">Real cases are explained <a href="#cases">below the calculator</a>.</div>
 
       <label for="volume">Judgments per month</label>
       <input id="volume" type="number" min="0" step="1000" inputmode="decimal">
       <label for="modelCost">Model cost per judgment ($)</label>
       <input id="modelCost" type="number" min="0" step="0.00001" inputmode="decimal">
       <div class="hint">A System One model is about $0.00002. A frontier LLM call is often 100–1,000× more.</div>
-      <label for="reviewCost">Human review cost per abstention ($)</label>
-      <input id="reviewCost" type="number" min="0" step="0.5" inputmode="decimal">
+      <label for="reviewCost">Review cost per abstention ($)</label>
+      <input id="reviewCost" type="number" min="0" step="any" inputmode="decimal">
+      <div class="hint">A person's time — or a bigger model's price, if unsure cases escalate to an LLM.</div>
       <label for="errorCost">Cost of one wrong automated action ($)</label>
-      <input id="errorCost" type="number" min="0" step="1" inputmode="decimal">
+      <input id="errorCost" type="number" min="0" step="any" inputmode="decimal">
       <div class="hint">Re-contact, refund, re-shipment, penalty — whatever a mistake really costs.</div>
+      <label for="yourThreshold">Threshold you use today (optional)</label>
+      <input id="yourThreshold" type="number" min="0" max="1" step="0.01" inputmode="decimal" placeholder="e.g. 0.8">
+      <div class="hint">Every threshold implies a price for a mistake. This reads yours backwards.</div>
 
       <h2 style="margin-top:20px">Reliability table</h2>
       <div class="note">Group judgments by the confidence the model reported. <b>Claimed</b> = average reported confidence in the band. <b>Measured</b> = share actually correct on labelled samples. <b>Share</b> = fraction of volume in the band.</div>
@@ -131,11 +157,83 @@
           <p><b>Chow threshold.</b> C. K. Chow (1970) showed that with <i>calibrated</i> probabilities the cost-minimising rule is: act automatically when confidence ≥ <code>1 − r/e</code>, otherwise ask a human.</p>
           <p><b>Calibration interest.</b> For every band you act on, the gap between claimed and measured accuracy produces errors you did not plan for: <code>Σ N·share·max(0, claimed − measured)·e</code>.</p>
           <p><b>Cost of trusting confidence.</b> The difference between the total at the Chow threshold and the total at the cheapest threshold found using measured accuracy.</p>
-          <p>Thresholds are applied at band edges. The default scenarios are illustrative, not measurements of any particular model.</p>
+          <p>Thresholds are applied at band edges. Reviewed judgments are assumed to end up correct. The logistics and trade scenarios are illustrative; the two real cases below use published measurements.</p>
         </div>
       </details>
     </section>
   </div>
+
+  <section class="cases" id="cases" aria-labelledby="cases-h">
+    <h2 id="cases-h">Learn from real cases</h2>
+    <p class="lede">Three published deployments of a decision model, put into digits. Each input is tagged <span class="tag">published</span> <span class="tag derived">derived</span> or <span class="tag assumed">assumed</span> so you can see exactly what is measured and what is a guess.</p>
+
+    <div class="case-grid">
+      <article class="card case">
+        <h3>Bank chatbot: which of 150 intents is this?</h3>
+        <div class="src">CLINC150 benchmark · Jev 1.13 · <a href="https://github.com/nikkoxgonzales/jev-certify" rel="noopener">jev-certify</a>, Sept 2026</div>
+        <h4>What they measured</h4>
+        <ul>
+          <li>Overall top-1 accuracy <b>93.0%</b>.</li>
+          <li>At a threshold of <b>0.831</b> the model routes <b>84.75%</b> of queries itself, with <b>2.65%</b> of those wrong.</li>
+          <li>The rest escalate to an LLM at <b>$4.20 per 1,000</b>. Total <b>$0.79 per 1,000</b> instead of $4.20.</li>
+        </ul>
+        <h4>How it maps</h4>
+        <table>
+          <tr><td>Model cost</td><td>$0.0001455</td><td><span class="tag">published</span></td></tr>
+          <tr><td>Review = LLM call</td><td>$0.0042</td><td><span class="tag">published</span></td></tr>
+          <tr><td>Auto band accuracy</td><td>97.35%</td><td><span class="tag">published</span></td></tr>
+          <tr><td>Escalated band accuracy</td><td>68.9%</td><td><span class="tag derived">derived</span></td></tr>
+          <tr><td>Error cost</td><td>$0.0248</td><td><span class="tag derived">derived</span></td></tr>
+          <tr><td>Claimed = measured</td><td>—</td><td><span class="tag assumed">assumed</span></td></tr>
+        </table>
+        <p class="note">The escalated band's accuracy follows from 93.0% overall. The error cost is the one at which 0.831 is Chow-optimal. The repo reports calibration error 0.099 overall but no per-band table, so bands are treated as calibrated. The calculator reproduces their cost: model + LLM = $0.786 per 1,000.</p>
+        <div class="lesson"><b>What it teaches:</b> every threshold is a price tag. Choosing 0.831 quietly says a misrouted customer query costs about <b>2.5 cents</b>. If it really costs a frustrated customer and five minutes of an agent (say $5), the right threshold is above <b>0.999</b> — with this data, that means escalating everything. Load it, set the error cost to 5, and watch the answer flip.</div>
+        <div class="row"><button type="button" data-load="clinc">Load into calculator</button></div>
+      </article>
+
+      <article class="card case">
+        <h3>AI judge: which of two answers is better?</h3>
+        <div class="src">Carnegie Mellon, <a href="https://arxiv.org/html/2609.26550v1" rel="noopener">arXiv 2609.26550</a> · Jev with GPT-6 fallback</div>
+        <h4>What they measured</h4>
+        <ul>
+          <li>Accuracy by confidence: <b>99.1%</b> at 1.0 (n=322) · <b>93.9%</b> at 0.95–0.99 (n=147) · <b>76.5%</b> at 0.7–0.8 (n=85) · <b>47.7%</b> below 0.6 (n=65).</li>
+          <li>Jev <b>$0.044</b> vs GPT-6 <b>$12.18</b> per 1,000 judgments.</li>
+          <li>Escalating below 0.9: <b>34%</b> escalated, <b>91.3%</b> accuracy vs GPT-6's 91.7%, at <b>47%</b> of the fee.</li>
+        </ul>
+        <h4>How it maps</h4>
+        <table>
+          <tr><td>Band accuracy &amp; counts</td><td>4 bands</td><td><span class="tag">published</span></td></tr>
+          <tr><td>Model / review cost</td><td>$0.000044 / $0.0122</td><td><span class="tag">published</span></td></tr>
+          <tr><td>Claimed confidence</td><td>band midpoint</td><td><span class="tag assumed">assumed</span></td></tr>
+          <tr><td>Error cost</td><td>$0.122</td><td><span class="tag derived">derived</span></td></tr>
+          <tr><td>Volume</td><td>10,000</td><td><span class="tag assumed">assumed</span></td></tr>
+        </table>
+        <p class="note">$0.122 (ten GPT-6 calls) is the error cost at which the paper's 0.9 is Chow-optimal. Only four bands are given in the text, so the preset escalates 24% instead of the paper's 34%. Treat it as a teaching approximation, not a replication.</p>
+        <div class="lesson"><b>What it teaches:</b> overconfidence hides at the top. The 0.95–0.99 band claims ~0.97 and delivers 0.939 — about <b>$15 per 10,000 judgments</b> of calibration interest. And "review" need not be a person: a bigger model is a reviewer with a price.</div>
+        <div class="row"><button type="button" data-load="cmu">Load into calculator</button></div>
+      </article>
+
+      <article class="card case">
+        <h3>Retail: are these two listings the same product?</h3>
+        <div class="src">Pricogni · <a href="https://paddo.dev/blog/thirty-cent-judge" rel="noopener">"The thirty-cent judge"</a></div>
+        <h4>What they measured</h4>
+        <ul>
+          <li><b>9,081</b> low-confidence product matches that nobody had looked at.</li>
+          <li>Two thresholds: <b>≥ 0.8</b> confirm, <b>≤ 0.2</b> refute, in between stays with a person.</li>
+          <li>Result: <b>21%</b> confirmed, <b>49%</b> refuted, <b>30%</b> left for humans. Whole run: <b>$0.32</b>, 13 minutes.</li>
+          <li>50 hand-checked: all 20 refutations held.</li>
+        </ul>
+        <h4>What's missing to price it</h4>
+        <table>
+          <tr><td>Review cost per match</td><td><span class="tag assumed">not published</span></td></tr>
+          <tr><td>Cost of a wrong match</td><td><span class="tag assumed">not published</span></td></tr>
+          <tr><td>Accuracy per confidence band</td><td><span class="tag assumed">not published</span></td></tr>
+        </table>
+        <p class="note">The author says it plainly: fifty hand labels "cannot test whether 0.85 means 85%".</p>
+        <div class="lesson"><b>What it teaches:</b> a 70% smaller human queue for 32 cents is real. What those automated 70% cost stays unknown until someone measures calibration and prices a mistake. A <a href="../spec/calibration-card.schema.json">Calibration Card</a> and two prices would turn this story into a P&amp;L.</div>
+      </article>
+    </div>
+  </section>
 </main>
 
 <script src="pnl.js"></script>
@@ -145,6 +243,14 @@
   const J = window.JudgmentPnL;
 
   const PRESETS = {
+    clinc: { volume: 100000, modelCost: 0.0001455, reviewCost: 0.0042, errorCost: 0.0248, yourThreshold: 0.831, bins: [
+      { low: 0, high: 0.831, claimed: 0.689, measured: 0.689, share: 0.1525 },
+      { low: 0.831, high: 1, claimed: 0.9735, measured: 0.9735, share: 0.8475 } ] },
+    cmu: { volume: 10000, modelCost: 0.000044, reviewCost: 0.012182, errorCost: 0.12182, yourThreshold: 0.9, bins: [
+      { low: 0.5, high: 0.6, claimed: 0.55, measured: 0.477, share: 0.105 },
+      { low: 0.7, high: 0.8, claimed: 0.75, measured: 0.765, share: 0.137 },
+      { low: 0.95, high: 0.99, claimed: 0.97, measured: 0.939, share: 0.238 },
+      { low: 0.99, high: 1, claimed: 1.0, measured: 0.991, share: 0.520 } ] },
     wismo: { volume: 100000, modelCost: 0.00002, reviewCost: 3, errorCost: 12, bins: [
       { low: 0, high: 0.5, claimed: 0.40, measured: 0.35, share: 0.05 },
       { low: 0.5, high: 0.6, claimed: 0.55, measured: 0.52, share: 0.05 },
@@ -171,10 +277,12 @@
   function num(v, d) { const n = parseFloat(v); return Number.isFinite(n) ? n : d; }
   function money(x) {
     const a = Math.abs(x);
-    const s = a >= 100 ? Math.round(a).toLocaleString("en-US") : a.toFixed(2);
+    if (a === 0) return "$0";
+    const s = a >= 100 ? Math.round(a).toLocaleString("en-US") : a >= 1 ? a.toFixed(2) : a >= 0.01 ? a.toFixed(3) : a.toFixed(5);
     return (x < 0 ? "−$" : "$") + s;
   }
   function pct(x) { return Math.round(x * 100) + "%"; }
+  function fmtT(x) { return String(+x.toFixed(3)); }
 
   function readHash() {
     try {
@@ -193,6 +301,7 @@
     $("modelCost").value = state.modelCost;
     $("reviewCost").value = state.reviewCost;
     $("errorCost").value = state.errorCost;
+    $("yourThreshold").value = typeof state.yourThreshold === "number" ? state.yourThreshold : "";
     const tbody = $("bins");
     tbody.textContent = "";
     state.bins.forEach((b, i) => {
@@ -229,17 +338,21 @@
   function renderResults(a) {
     const m = $("metrics");
     m.textContent = "";
-    const t = (x) => (x > 1 ? "never (all to humans)" : x.toFixed(2));
+    const t = (x) => (x > 1 ? "never — review everything" : fmtT(x));
     m.appendChild(metric("Chow threshold (trusting reported confidence)", t(a.chowSnapped),
-      "1 − review ÷ error = " + a.chow.toFixed(3) + ". Total " + money(a.atChow.total) + " / month, " + pct(a.atChow.abstainShare) + " to humans."));
+      "1 − review ÷ error = " + a.chow.toFixed(3) + ". Total " + money(a.atChow.total) + " / month, " + pct(a.atChow.abstainShare) + " reviewed."));
     m.appendChild(metric("Cheapest threshold (measured accuracy)", t(a.best.tau),
-      "Total " + money(a.best.total) + " / month, " + pct(a.best.abstainShare) + " to humans.", "good"));
+      "Total " + money(a.best.total) + " / month, " + pct(a.best.abstainShare) + " reviewed.", "good"));
     m.appendChild(metric("Calibration interest at the Chow threshold", money(a.atChow.interest),
       "Errors you did not plan for, because claimed confidence exceeds measured accuracy.", a.atChow.interest > 0 ? "warn" : ""));
     m.appendChild(metric("Cost of trusting the model's confidence", money(a.trustRegret),
       "Chow total minus the cheapest total. Zero when the model is calibrated.", a.trustRegret > 0 ? "warn" : ""));
+    if (a.yours) {
+      m.appendChild(metric("At your threshold " + fmtT(a.yours.tau), money(a.yours.result.total),
+        "It is only optimal if one mistake costs " + money(a.yours.impliedErrorCost) + " (review ÷ (1 − threshold)). " + pct(a.yours.result.abstainShare) + " reviewed."));
+    }
     m.appendChild(metric("Model bill", money(a.best.model), "The number most dashboards show."));
-    m.appendChild(metric("Everything to humans", money(a.allHuman.total), "Baseline with no automation."));
+    m.appendChild(metric("No automation", money(a.allHuman.total), "Every judgment reviewed — the baseline."));
   }
 
   function renderChart(a) {
@@ -280,6 +393,8 @@
       state.modelCost = num($("modelCost").value, 0);
       state.reviewCost = num($("reviewCost").value, 0);
       state.errorCost = num($("errorCost").value, 0);
+      const yt = parseFloat($("yourThreshold").value);
+      if (Number.isFinite(yt) && yt > 0 && yt < 1) state.yourThreshold = yt; else delete state.yourThreshold;
     }
     const sum = state.bins.reduce((s, b) => s + (b.share || 0), 0);
     const ss = $("shareSum");
@@ -292,8 +407,13 @@
     writeHash();
   }
 
-  ["volume", "modelCost", "reviewCost", "errorCost"].forEach((id) => $(id).addEventListener("input", () => update(true)));
-  $("preset").addEventListener("change", (e) => { state = clone(PRESETS[e.target.value]); renderInputs(); update(false); });
+  ["volume", "modelCost", "reviewCost", "errorCost", "yourThreshold"].forEach((id) => $(id).addEventListener("input", () => update(true)));
+  function loadPreset(key) { state = clone(PRESETS[key]); $("preset").value = key; renderInputs(); update(false); }
+  $("preset").addEventListener("change", (e) => loadPreset(e.target.value));
+  document.querySelectorAll("[data-load]").forEach((btn) => btn.addEventListener("click", () => {
+    loadPreset(btn.getAttribute("data-load"));
+    $("inputs-h").scrollIntoView({ behavior: "smooth", block: "start" });
+  }));
   $("addBin").addEventListener("click", () => {
     const last = state.bins[state.bins.length - 1];
     state.bins.push({ low: last ? last.high : 0, high: 1, claimed: 0.9, measured: 0.9, share: 0 });

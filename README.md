@@ -1,10 +1,12 @@
 # Judgment Architecture
 
-**A design discipline for software that decides — and knows how sure it is.**
+**A design discipline for AI systems that decide — and know how sure they are.**
+
+*For teams automating decisions with LLMs, decision models (System One models such as Jev) or classic classifiers: where to set the confidence threshold, what a wrong automated decision really costs, and how to design for "the AI isn't sure".*
 
 > A system should never claim more than it knows, must say how sure it is, and must be able to say *"I don't know"* as a first-class outcome.
 
-→ **[Judgment P&L calculator](calculator/)** — four numbers in, your cost-optimal confidence threshold and your monthly miscalibration bill out. It is a single HTML file: open `calculator/index.html` in a browser, or use the GitHub Pages site for this repo.
+→ **[Judgment P&L calculator](calculator/)** — four numbers in, your cost-optimal confidence threshold and your monthly miscalibration bill out. It is a single HTML file: open `calculator/index.html` in a browser, or use the GitHub Pages site for this repo. It includes **three real, published deployments put into digits** — a bank-chatbot intent router, a Carnegie Mellon AI-judge cascade, and a retail product-matching queue — with every input tagged as published, derived or assumed.
 
 ---
 

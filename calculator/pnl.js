@@ -54,7 +54,16 @@
     const allHuman = costAt(1.000001, p);
     // What trusting the model's own confidence costs versus the threshold chosen on measured accuracy.
     const trustRegret = atChow.total - best.total;
-    return { chow, chowSnapped, atChow, best, allHuman, curve, trustRegret };
+    // Reading a threshold backwards: the error cost at which it would be Chow-optimal.
+    let yours = null;
+    if (typeof p.yourThreshold === "number" && p.yourThreshold > 0 && p.yourThreshold < 1) {
+      const snapped = snapUp(p.yourThreshold, p.bins);
+      yours = {
+        tau: p.yourThreshold, snapped, result: costAt(snapped, p),
+        impliedErrorCost: p.reviewCost / (1 - p.yourThreshold),
+      };
+    }
+    return { chow, chowSnapped, atChow, best, allHuman, curve, trustRegret, yours };
   }
 
   const api = { chowThreshold, costAt, candidateThresholds, snapUp, analyse };
